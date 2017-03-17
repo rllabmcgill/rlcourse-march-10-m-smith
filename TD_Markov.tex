@@ -1,0 +1,190 @@
+\documentclass{beamer}
+%
+% Choose how your presentation looks.
+%
+% For more themes, color themes and font themes, see:
+% http://deic.uab.es/~iblanes/beamer_gallery/index_by_theme.html
+%
+\mode<presentation>
+{
+  \usetheme{default}      % or try Darmstadt, Madrid, Warsaw, ...
+  \usecolortheme{beaver} % or try albatross, beaver, crane, ...
+  \usefonttheme{default}  % or try serif, structurebold, ...
+  \setbeamertemplate{navigation symbols}{}
+  \setbeamertemplate{caption}[numbered]
+} 
+
+\usepackage[english]{babel}
+\usepackage[utf8x]{inputenc}
+\usepackage{animate}
+% COMMANDS %
+\newcommand{\set}[1]{\left\{#1\right\}}
+\newcommand{\abs}[1]{\left| #1\right|}
+\newcommand{\eval}[1]{\mathbb{E}\left[#1\right]}
+\newcommand{\var}[1]{\text{Var}\left(#1\right)}
+\newcommand{\cov}[1]{\text{Cov}\left(#1\right)}
+\newcommand{\prob}[1]{\mathbb{P}\left(#1\right)}
+\newcommand{\borel}{\mathcal{B}([0,1])}
+\newcommand{\borelR}{\mathcal{B}(\mathbb{R})}
+\newcommand{\sigalg}[1]{\sigma\left(#1\right)}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\F}{\mathcal{F}}
+\newcommand{\G}{\mathcal{G}}
+\newcommand{\leb}[1]{\mu_{\text{Leb}}\left(#1\right)}
+\newcommand{\limn}{\lim_{n\rightarrow\infty}}
+\renewcommand{\vec}[1]{\mathbf{#1}}
+
+\title{Temporal Difference Methods are Not Gradient Descent}
+\subtitle{COMP 767}
+\author{Matthew Smith}
+\date{}
+\institute{Summary of: \emph{Temporal Difference Methods and Markov Models} by Etienne Barnard}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+% Uncomment these lines for an automatically generated outline.
+%\begin{frame}{Outline}
+%  \tableofcontents
+%\end{frame}
+
+
+%----------------------------------------------------------------------
+
+\begin{frame}{Overview}
+
+\tableofcontents
+\end{frame}
+
+%----------------------------------------------------------------------
+\section{Introduction}
+\subsection{Problem Setting: Sequential Prediction}
+\begin{frame}{Problem Setting: Sequential Prediction}
+
+\begin{itemize}
+\item Tabular Markov Process, in which the state $s_t$ of the system is observed at each time step $t$. 
+\item After $m_\sigma$ such steps, a terminal state $z_\sigma$
+is reached. ($\sigma$ indexes the trajectory)
+\item The goal is to predict the (binary) value of the terminal state from the previous states: $P(z_\sigma = Z | s_t = s )$.
+\end{itemize}
+
+\end{frame}
+
+\subsection{Temporal Difference Methods and Markov Models}
+\begin{frame}{Temporal Difference Methods and Markov Models}
+
+\begin{itemize}
+  \item<1-> We can express the probability of terminating in state $Z$, given a current state, $s$ as the empirical ratio:
+  \[w_s = n_Zs / n_s\]
+  where $n_s$ is the number of trajectories in which state $s$ is reached, and $n_Zs$ is the number of such trajectories that end in $Z$
+  \item<2-> However, this is not data efficient - we don't leverage the Markov structure.
+
+\end{itemize}
+
+
+\end{frame}
+
+\begin{frame}{TD Methods and Markov Models}
+  \begin{itemize}
+  \item<1-> Instead, represent $w_s$ as the sum:
+  \[w_s = h_s + \sum_{s'}P(s'|s)w_{s'}\]
+  where $h_s$ is the probability of terminating in $Z$ directly from state $s$, and $P$ denotes the transition probability.
+  \item<2-> Since $h$ and $P$ are also probabilities, we can estimate them using empirical frequencies:
+  \[
+    h_s = m_{sZ}/n_s \hspace{1cm} P(s'|s) = m_{ss'}/n_s
+  \]
+\end{itemize}
+\end{frame}
+
+
+\begin{frame}{TD Methods and Markov Models}
+  \begin{itemize}
+  \item<1-> multiply through by $n_{s'}$:\[\sum_{s'}m_{ss'}w_s -  n_{s'}w_s' + m_{sZ} = 0\]
+  \item<2-> Or in matrix form: \[(\vec{M} - \vec{N})\vec{w} + \vec{m} = \vec{0}\]
+  \item<3-> Which can be solved iteratively by:
+  \[\vec{w} \to \vec{w} + \alpha\left[(\vec{M} - \vec{N})\vec{w} + \vec{m}\right]\]
+\end{itemize}
+\end{frame}
+\begin{frame}{TD Methods and Markov Models}
+  \begin{itemize}
+  \item<1-> Here we apply the one-step contributions to $M$ and $N$ at every step.
+  \item<2-> Assuming $\vec{x}_t$ represents the one-hot state encoding vector, we can express this as: 
+  \begin{align}\vec{w} &\to \vec{w} + \alpha\left[(\vec{x}_t\vec{x}_{t+1}^{\top} - \vec{x}_t\vec{x}_{t}^{\top})\vec{w} + \vec{x}_t\delta_{s_{t+1}Z}\right]\\
+  &=\vec{w} + \alpha\left[(\vec{x}_{t+1}^{\top}\vec{w} - \vec{x}_{t}^{\top}\vec{w} + \delta_{s_{t+1}Z})\vec{x}_t\right]
+  \end{align}
+  which looks like TD.
+\end{itemize}
+\end{frame}
+\subsection{Value Case}
+\begin{frame}{Value Accumulation}
+  \begin{itemize}
+  \item<1-> Similarly, we can express the value as the sum:
+  \[v_s = r_s + \sum_{s'}P(s'|s)v_{s'}\].
+  \item<2-> Now $r_s$ is no longer a probability, so this gives us:
+  \[(\vec{M} - \vec{N})\vec{v} + \vec{N}\vec{r} = \vec{0}\]
+  \item<3-> And using the same approximations as before gives the TD update that we all know:
+  \begin{align}\vec{v} &\to \vec{v} + \alpha\left[(\vec{x}_t\vec{x}_{t+1}^{\top} - \vec{x}_t\vec{x}_{t}^{\top})\vec{v} + \vec{x}_t\vec{x}_{t}^{\top}\vec{r}\right]\\
+  &=\vec{v} + \alpha\left[(\vec{x}_{t+1}^{\top}\vec{v} - \vec{x}_{t}^{\top}\vec{v} + \vec{x}_{t}^{\top}\vec{r})\vec{x}_t\right]
+  \end{align}
+\end{itemize}
+\end{frame}
+
+
+\section{TD is Not Gradient Descent}
+\subsection{Explanation}
+\begin{frame}{TD is Not Gradient Descent}
+  \begin{itemize}
+  \item<1->  If TD were gradient descent, we would have: \[\nabla J(v) = (\vec{x}_t\vec{x}_{t+1}^{\top} - \vec{x}_t\vec{x}_{t}^{\top})\vec{v} + \vec{x}_t\vec{x}_{t}^{\top}\vec{r}\]
+  \item<2-> However, we then have:
+  \begin{align}
+  \frac{\partial J}{\partial v_i} & = x_{ti}\left[(\vec{x}_{t+1}^{\top} - \vec{x}_{t}^{\top})\vec{v} + \vec{x}_{t}^{\top}\vec{r}\right]
+  \intertext{and}
+   \frac{\partial J}{\partial v_j}& = x_{tj}\left[(\vec{x}_{t+1}^{\top} - \vec{x}_{t}^{\top})\vec{v} + \vec{x}_{t}^{\top}\vec{r}\right]
+  \end{align}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{TD is Not Gradient Descent}
+  \begin{itemize}
+  \item<1-> We have:
+  \begin{align*}
+  \frac{\partial J}{\partial v_i} & = x_{ti}\left[(\vec{x}_{t+1}^{\top} - \vec{x}_{t}^{\top})\vec{v} + \vec{x}_{t}^{\top}\vec{r}\right]
+  \textrm{and}\\
+   \frac{\partial J}{\partial v_j} & = x_{tj}\left[(\vec{x}_{t+1}^{\top} - \vec{x}_{t}^{\top})\vec{v} + \vec{x}_{t}^{\top}\vec{r}\right]
+     \end{align*}
+  \item<2-> But this means that:
+    \begin{align*}
+  \frac{\partial^2 J}{\partial v_i \partial v_j} & = x_{ti}(x_{(t+1)j}- x_{tj}) 
+  \intertext{and}
+   \frac{\partial^2 J}{\partial v_j \partial v_i} & = x_{tj}(x_{(t+1)i}- x_{ti})
+     \end{align*}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{TD is Not Gradient Descent}
+  \begin{itemize}
+  \item<1-> Since:
+  \[\frac{\partial^2 J}{\partial v_i \partial v_j} \not = \frac{\partial^2 J}{\partial v_j \partial v_i}\]
+  TD updates do not come from the derivative of a differentiable function.
+\end{itemize}
+\end{frame}
+
+\subsection{Results}
+\begin{frame}{TD is Not Gradient Descent}
+  Note that this slide does not actually prove anything, but in a two parameter, nonabsorbing, 4 state environment, with 0 reward everywhere, we see that TD does not follow the gradient of the MSVE function.
+  
+\end{frame}
+\begin{frame}
+(Yellow is SGD, blue is TD, red is the gradient, green is MSVE)
+  \begin{figure}
+  \animategraphics[autoplay,loop,width=0.8\linewidth]{12}{td_msve-}{0}{19}
+  \end{figure}
+\end{frame}
+%----------------------------------------------------------------------
+
+\end{document}
+
